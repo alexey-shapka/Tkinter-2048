@@ -47,7 +47,7 @@ class Interface:
         self.speed_mode = 3
         self.player_score = 0
         self.check_changes = False
-        self.stop = False
+        self.block_new_events = False
         self.player_time = time.time()
         self.create_start_blocks()
 
@@ -85,7 +85,7 @@ class Interface:
     def generate_new_value(self):
         chosen = random.choice([[i, j] for i in range(4) for j in range(4) if self.blocks[i][j].value == 0])
         if random.random() >= 0.9:
-            self.blocks[chosen[0]][chosen[1]].set_value(4, self.colors['2'])
+            self.blocks[chosen[0]][chosen[1]].set_value(4, self.colors['4'])
         else:
             self.blocks[chosen[0]][chosen[1]].set_value(2, self.colors['2'])
 
@@ -97,7 +97,7 @@ class Interface:
             self.canvas.create_rectangle(x, y, x + 110, y + 110, tags='move', fill=color[0], outline='')
             self.canvas.create_text(x + 50, y + 50, font=("arial", 25, 'bold'), text=str(i[2]), fill=color[1], tags='move')
 
-        for i in range(int(110/self.speed_scale[self.speed_mode])):
+        for _ in range(int(110/self.speed_scale[self.speed_mode])):
             if button == 'up':
                 self.canvas.move('move', 0, -self.speed_scale[self.speed_mode])
             elif button == 'down':
@@ -114,15 +114,14 @@ class Interface:
 
     def skip_zero_squares(self, button, replace_flag=True):
         while replace_flag:
-            replace_flag = False
+            replace_flag, to_move = False, []
             for i in range(3):
-                to_move = []
                 for pair in self.return_indexes(button, i):
                     first, second = self.blocks[pair[0][0]][pair[0][1]], self.blocks[pair[1][0]][pair[1][1]]
                     if second.value == 0 and first.value != 0:
                         to_move.append([first, second, first.value])
                         self.check_changes, replace_flag = True, True
-                self.animation(to_move, button)
+            self.animation(to_move, button)
 
     def return_indexes(self, button, iteration, reverse=False):
         reverse_true = {'right' : [([i, 3 - iteration], [i, 2 - iteration]) for i in range(4)],
@@ -152,22 +151,22 @@ class Interface:
         return True
 
     def button_event(self, button):
-        if self.stop != True:
-            self.stop = True
+        if self.block_new_events != True:
+            self.block_new_events, to_move, already_used = True, [], []
             self.skip_zero_squares(button)
             for i in range(3):
-                to_move = []
                 for pair in self.return_indexes(button, i, reverse=True):
                     first, second = self.blocks[pair[0][0]][pair[0][1]], self.blocks[pair[1][0]][pair[1][1]]
-                    if first.value == second.value and first.value != 0:
+                    if first.value == second.value and first.value != 0 and first not in already_used:
                         to_move.append([second, first, second.value*2])
                         self.player_score += second.value*2
                         self.check_changes = True
+                        already_used.append(second)
                         if first.value == 2048:
                             messagebox.showinfo('Win', 'You won!')
-                self.animation(to_move, button)
-
+            self.animation(to_move, button)
             self.skip_zero_squares(button)
+
             if self.check_changes:
                 self.generate_new_value()
                 self.check_changes = False
@@ -175,7 +174,7 @@ class Interface:
                 if len([[i, j] for i in range(4) for j in range(4) if self.blocks[i][j].value != 0]) == 16:
                     if self.lose_condition():
                         messagebox.showinfo('Defeat', 'Game over!')
-            self.stop = False
+            self.block_new_events = False
 
 
 class Canvas_block:
